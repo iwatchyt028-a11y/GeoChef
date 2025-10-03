@@ -1,3 +1,5 @@
+Note: Everything is made with Chat GPT 5 for fun, even this text below  ⬇️
+
 # GeoChef (MVP)
 
 GeoChef is a mobile-first GeoGuessr-style demo (MVP). It runs locally without paid APIs using a seeded panorama dataset.
