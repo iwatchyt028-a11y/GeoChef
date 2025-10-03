@@ -1,0 +1,26 @@
+[
+  {
+    "id":"cairo-1",
+    "title":"Cairo Street",
+    "lat":30.0444,
+    "lon":31.2357,
+    "links":["paris-1"],
+    "image":"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2048' height='1024'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23f9d29b'/%3E%3Cstop offset='1' stop-color='%23ffb74d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='2048' height='1024' fill='url(%23g)'/%3E%3Ctext x='80' y='120' font-size='48' fill='%230b2636' font-family='Arial'%3ECairo Street - GeoChef Sample%3C/text%3E%3Ctext x='80' y='200' font-size='24' fill='%230b2636'%3ELat:30.0444 Lon:31.2357%3C/text%3E%3C/svg%3E"
+  },
+  {
+    "id":"paris-1",
+    "title":"Paris Lane",
+    "lat":48.8566,
+    "lon":2.3522,
+    "links":["nyc-1"],
+    "image":"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2048' height='1024'%3E%3Cdefs%3E%3ClinearGradient id='g2' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23e8f4ff'/%3E%3Cstop offset='1' stop-color='%231E90FF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='2048' height='1024' fill='url(%23g2)'/%3E%3Ctext x='80' y='120' font-size='48' fill='%23fff' font-family='Arial'%3EParis Lane - GeoChef Sample%3C/text%3E%3Ctext x='80' y='200' font-size='24' fill='%23fff'%3ELat:48.8566 Lon:2.3522%3C/text%3E%3C/svg%3E"
+  },
+  {
+    "id":"nyc-1",
+    "title":"NYC Corner",
+    "lat":40.7128,
+    "lon":-74.0060,
+    "links":["cairo-1"],
+    "image":"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2048' height='1024'%3E%3Cdefs%3E%3ClinearGradient id='g3' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23c6ffd7'/%3E%3Cstop offset='1' stop-color='%2391e47a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='2048' height='1024' fill='url(%23g3)'/%3E%3Ctext x='80' y='120' font-size='48' fill='%230b2636' font-family='Arial'%3ENYC Corner - GeoChef Sample%3C/text%3E%3Ctext x='80' y='200' font-size='24' fill='%230b2636'%3ELat:40.7128 Lon:-74.0060%3C/text%3E%3C/svg%3E"
+  }
+]

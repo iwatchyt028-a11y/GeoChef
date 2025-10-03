@@ -1,0 +1,17 @@
+geo-chef/
+├─ index.html
+├─ main.css
+├─ main.js
+├─ panoramas.json
+├─ sw.js
+├─ manifest.json
+├─ README.md
+├─ LICENSE
+├─ ACKNOWLEDGEMENTS
+├─ icons/
+│  └─ chef-hat.svg
+├─ tests/
+│  └─ test_haversine.js
+└─ .github/
+   └─ workflows/
+      └─ ci.yml

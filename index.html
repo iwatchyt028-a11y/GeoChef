@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>GeoChef — Cook up a location!</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1E90FF"/>
+
+  <link rel="stylesheet" href="main.css" />
+  <!-- Chef hat icon inline accessible -->
+  <link rel="icon" href="icons/chef-hat.svg" type="image/svg+xml">
+
+  <meta name="description" content="GeoChef — mobile-first GeoGuessr-style web game (offline-ready)."/>
+</head>
+<body>
+  <div id="app" class="app" aria-live="polite">
+    <header class="topbar" role="banner">
+      <div class="brand">
+        <img src="icons/chef-hat.svg" alt="" aria-hidden="true" class="logo"/>
+        <h1 class="title">GeoChef</h1>
+      </div>
+      <button id="menuBtn" class="icon-btn" aria-label="Open settings">☰</button>
+    </header>
+
+    <main class="main" role="main">
+      <section id="panoramaWrap" class="panorama-wrap" aria-label="Panorama viewer">
+        <div id="panoContainer" class="pano-container" tabindex="0" aria-label="Panorama. Drag horizontally to look around.">
+          <!-- image added by JS -->
+        </div>
+
+        <div class="hud">
+          <div class="hud-left">
+            <div id="timer" class="pill" aria-hidden="true">—</div>
+            <div id="mini" class="pill">Round: <span id="roundNum">0</span></div>
+          </div>
+          <div class="hud-center">
+            <button id="guessBtn" class="guess-btn" aria-label="Make a guess">Make Guess</button>
+          </div>
+          <div class="hud-right">
+            <button id="hintBtn" class="pill" aria-label="Hint (not implemented)">💡</button>
+          </div>
+        </div>
+
+        <div class="nav-arrows">
+          <button id="backBtn" class="arrow left" aria-label="Go back">◀</button>
+          <button id="forwardBtn" class="arrow right" aria-label="Go forward">▶</button>
+        </div>
+      </section>
+
+      <section class="controls">
+        <div class="row">
+          <select id="modeSelect" aria-label="Choose mode">
+            <option value="standard">Standard (5 rounds)</option>
+            <option value="casual">Casual (1 round)</option>
+            <option value="pro">Pro (10 rounds)</option>
+          </select>
+          <button id="startBtn" class="primary">Start Game</button>
+        </div>
+
+        <div class="row small">
+          <button id="downloadPack" class="secondary">Download sample pack (offline)</button>
+          <button id="lowData" class="secondary">Low Data: Off</button>
+        </div>
+
+        <div class="row">
+          <div id="scoreboard" class="scoreboard" aria-live="polite">Score: <span id="scoreVal">0</span></div>
+        </div>
+      </section>
+
+      <section id="leaderboard" class="leaderboard" aria-label="Leaderboard">
+        <h3>Local Leaderboard</h3>
+        <ol id="leaderList" role="list"></ol>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" role="navigation" aria-label="Main">
+      <button class="nav-btn" aria-label="Play">Play</button>
+      <button class="nav-btn" aria-label="Leaderboard">Leaderboard</button>
+      <button class="nav-btn" aria-label="Profile">Profile</button>
+    </nav>
+
+    <!-- Map modal (used for guessing) -->
+    <div id="mapModal" class="modal" role="dialog" aria-hidden="true" aria-label="Map — drop a pin to make your guess">
+      <div class="modal-content">
+        <header class="modal-header">
+          <h2>Drop your pin</h2>
+          <button id="closeMap" class="icon-btn" aria-label="Close map">✕</button>
+        </header>
+        <div class="map-area">
+          <canvas id="mapCanvas" width="900" height="450" aria-label="World map canvas"></canvas>
+          <div class="map-help">Click or tap to drop pin. For precise, zoom in.</div>
+        </div>
+        <footer class="modal-footer">
+          <button id="confirmGuess" class="primary">Confirm Guess</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Score modal -->
+    <div id="scoreModal" class="modal small" role="dialog" aria-hidden="true">
+      <div class="modal-content score-card">
+        <h3 id="scoreTitle">Round Score</h3>
+        <div id="scoreBreakdown" class="score-breakdown"></div>
+        <button id="nextRound" class="primary">Next</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

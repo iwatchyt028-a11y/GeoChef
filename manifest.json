@@ -1,0 +1,15 @@
+{
+  "name": "GeoChef",
+  "short_name": "GeoChef",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1E90FF",
+  "icons": [
+    {
+      "src": "icons/chef-hat.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

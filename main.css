@@ -1,0 +1,73 @@
+:root{
+  --primary: #1E90FF;
+  --primary-dark: #177ad6;
+  --bg: #FFFFFF;
+  --muted: #F6FAFF;
+  --text: #0B2636;
+  --success: #2ecc71;
+  --danger: #e74c3c;
+  --shadow: 0 6px 18px rgba(11,38,54,0.08);
+  --radius: 12px;
+  --spacing: 14px;
+  --tap-size: 48px;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+*{box-sizing:border-box}
+html,body,#app{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #f0f4fb;background:linear-gradient(0deg, rgba(255,255,255,0.9), rgba(255,255,255,0.9))}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:44px;height:44px}
+.title{font-size:18px;margin:0;color:var(--primary)}
+.icon-btn{background:transparent;border:0;font-size:18px;padding:8px;border-radius:8px}
+.main{padding:12px;display:flex;flex-direction:column;gap:12px}
+.panorama-wrap{position:relative;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);height:58vh;background:var(--muted);}
+.pano-container{height:100%;width:100%;overflow:hidden;touch-action:none;display:flex;align-items:center;justify-content:center;background:#000}
+.pano-container img{height:100%;width:auto;user-select:none;pointer-events:none;transform-origin:50% 50%;}
+
+.hud{position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:space-between;align-items:center;padding:0 12px;gap:12px}
+.pill{background:rgba(255,255,255,0.95);padding:8px 10px;border-radius:999px;box-shadow:var(--shadow);font-size:13px}
+.guess-btn{background:var(--primary);color:white;border:0;padding:14px 22px;border-radius:999px;font-size:16px;box-shadow:var(--shadow);min-width:160px}
+.guess-btn:active{transform:translateY(1px);}
+
+.nav-arrows{position:absolute;inset:auto 12px 50% 12px;display:flex;justify-content:space-between;align-items:center;pointer-events:auto}
+.arrow{background:rgba(255,255,255,0.9);border-radius:999px;padding:10px 14px;font-size:22px;border:0;box-shadow:var(--shadow)}
+.arrow.left{position:absolute;left:12px;bottom:18px}
+.arrow.right{position:absolute;right:12px;bottom:18px}
+
+.controls{display:flex;flex-direction:column;gap:10px;padding:6px 2px}
+.row{display:flex;gap:10px;align-items:center}
+.row.small{font-size:13px}
+.primary{background:var(--primary);color:#fff;border:0;padding:10px 14px;border-radius:10px}
+.secondary{background:#fff;border:1px solid #eee;padding:8px 12px;border-radius:10px}
+
+.scoreboard{font-weight:600}
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-around;padding:8px 12px;background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,1));border-top:1px solid #eee}
+.nav-btn{background:transparent;border:0;padding:10px;border-radius:8px}
+
+.leaderboard{padding:8px 0}
+.leaderboard ol{padding-left:20px;margin:6px 0}
+
+.modal{position:fixed;left:0;top:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(12,22,36,0.45);z-index:40}
+.modal[aria-hidden="false"]{display:flex}
+.modal.small .modal-content{width:320px}
+.modal .modal-content{background:white;border-radius:14px;padding:12px;box-shadow:var(--shadow);max-width:950px;width:95%}
+.modal-header{display:flex;justify-content:space-between;align-items:center}
+.map-area{padding:8px 0;display:flex;flex-direction:column;align-items:center}
+.map-area canvas{max-width:100%;border-radius:10px;border:1px solid #e6eefb;background:linear-gradient(180deg,#eaf6ff,#ffffff)}
+.map-help{font-size:13px;color:#6b7b86;margin-top:8px}
+
+.score-card{display:flex;flex-direction:column;gap:10px;align-items:center}
+.score-breakdown{min-height:72px}
+.score-reveal{animation:scorePop 420ms cubic-bezier(.2,.9,.3,1)}
+@keyframes scorePop{0%{transform:scale(.92);opacity:0}60%{transform:scale(1.03);opacity:1}100%{transform:scale(1)}}
+
+/* Accessibility & touch sizing */
+button,select{min-height:var(--tap-size)}
+.primary, .secondary { min-height:48px }
+
+/* Small screens tweaks */
+@media (max-width:560px){
+  .pano-container img{height:100%}
+  .guess-btn{min-width:140px;padding:12px}
+}
