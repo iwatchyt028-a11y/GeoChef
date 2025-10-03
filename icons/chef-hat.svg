@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>GeoChef chef hat</title>
+  <g fill="#1E90FF">
+    <path d="M16 34c-8 0-10-12-3-16 1-6 8-10 15-8 2-7 12-9 18-3 7 7 2 18-6 20-5 1-3 5-3 7H16z"/>
+    <circle cx="48" cy="12" r="2" fill="#fff"/>
+  </g>
+</svg>
