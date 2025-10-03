@@ -1,5 +1,9 @@
 Note: Everything is made with Chat GPT 5 for fun, even this text below  ⬇️
 
+(Edit: I think I should do it my self instead of wasting hours telling AI my vision ;-;. This would be a good learning journey too. Will make an update about the final result or progress on January 2026)
+(Also until then if anyone wants the name GeoChef to make such a webgame then don't hesitate to do so, it will be my pleasure spcially if that webgame is near to my vision of a unique GeoGuessr game that is completely free and funnier to play)
+(I wish y'all a supercalifragilistic life and May God Bless you.)
+
 # GeoChef (MVP)
 
 GeoChef is a mobile-first GeoGuessr-style demo (MVP). It runs locally without paid APIs using a seeded panorama dataset.
