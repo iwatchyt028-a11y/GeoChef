@@ -1,354 +1,302 @@
-// main.js — GeoChef MVP
-// Minimal dependency approach: plain JS. Designed for clarity and local testing.
-// Accessibility: main interactive elements have ARIA roles.
+// main.js (GeoChef MVP playable update)
+// Uses Pannellum (360 viewer) + Leaflet (map) + localStorage for simple accounts & leaderboard.
+// This file replaces the earlier lightweight demo. No external API keys required.
 
 const APP = {
   state: {
-    panoramas: [], // loaded from panoramas.json
-    currentIndex: 0,
+    panoramas: [],
+    currentId: null,
     round: 1,
     roundsTotal: 5,
     score: 0,
     lowData: false,
     startTime: null,
-    guessLatLon: null
-  }
+    guessLatLon: null,
+    viewer: null,
+    map: null,
+    mapMarker: null,
+    user: null
+  },
+  CACHE_NAME: 'geochef-shell-v1'
 };
 
-// Utilities
-function el(q) { return document.querySelector(q) }
-function $id(id){ return document.getElementById(id) }
+/* ---------- Utilities ---------- */
+const $ = sel => document.querySelector(sel);
+const $id = id => document.getElementById(id);
 
 // Haversine (digit-by-digit careful)
-function haversine(lat1, lon1, lat2, lon2){
+function haversine(lat1, lon1, lat2, lon2) {
   const toRad = x => x * Math.PI / 180;
   const R = 6371; // km
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
-            Math.cos(toRad(lat1))*Math.cos(toRad(lat2)) *
-            Math.sin(dLon/2)*Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
 
-// Load panorama dataset
-async function loadPanoramas(){
-  try{
-    const res = await fetch('panoramas.json');
-    const data = await res.json();
-    APP.state.panoramas = data;
-  }catch(e){
-    console.error('Failed to load panoramas.json', e);
-    APP.state.panoramas = [];
+/* ---------- curated sample pack (uses free Wikimedia Commons thumbnails) ---------- */
+const curatedPack = [
+  {
+    id: 'rheingau-dom',
+    title: 'Rheingauer Dom, Geisenheim',
+    lat: 49.9864,
+    lon: 7.9685,
+    links: ['eso-hq','narada-falls'],
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Rheingauer_Dom%2C_Geisenheim%2C_360_Panorama_%28Equirectangular_projection%29.jpg/960px-Rheingauer_Dom%2C_Geisenheim%2C_360_Panorama_%28Equirectangular_projection%29.jpg'
+  },
+  {
+    id: 'eso-hq',
+    title: 'ESO Headquarters, Garching (Germany)',
+    lat: 48.2593,
+    lon: 11.6707,
+    links: ['narada-falls','rheingau-dom'],
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/360-degree_panorama_of_the_ESO_Headquarters_%28hqe-pano2%29.jpg/960px-360-degree_panorama_of_the_ESO_Headquarters_%28hqe-pano2%29.jpg'
+  },
+  {
+    id: 'narada-falls',
+    title: 'Narada Falls, Mount Rainier (USA)',
+    lat: 46.77528,
+    lon: -121.74528,
+    links: ['rheingau-dom','eso-hq'],
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Narada_Falls%2C_Mount_Rainier_National_Park%2C_equirectangular_panorama_02.jpg/960px-Narada_Falls%2C_Mount_Rainier_National_Park%2C_equirectangular_panorama_02.jpg'
+  }
+];
+
+/* ---------- Load panoramas.json, fallback to curated if placeholders ---------- */
+async function loadPanoramas() {
+  try {
+    const r = await fetch('panoramas.json', {cache: 'no-cache'});
+    if (!r.ok) throw new Error('panoramas.json fetch failed');
+    const data = await r.json();
+    // If it looks like placeholder SVG dataURIs or empty, replace with curated pack
+    const looksLikePlaceholders = !data.length || data.every(p => typeof p.image === 'string' && p.image.startsWith('data:image/svg'));
+    APP.state.panoramas = looksLikePlaceholders ? curatedPack : data;
+  } catch (err) {
+    console.warn('Could not load panoramas.json — using curated pack', err);
+    APP.state.panoramas = curatedPack;
   }
 }
 
-// Panorama viewer: uses <img> inside overflow:hidden and transforms translateX/Y
-const viewer = {
-  container: null,
-  img: null,
-  dragging: false,
-  lastX: 0,
-  lastY: 0,
-  posX: 0,
-  posY: 0,
-  scale: 1,
-  maxOffsetX: 0,
-  maxOffsetY: 0,
-  init(container){
-    this.container = container;
-    this.img = document.createElement('img');
-    this.img.alt = 'Panorama image';
-    this.img.draggable = false;
-    container.appendChild(this.img);
-    // pointer events
-    container.addEventListener('pointerdown', this.onDown.bind(this));
-    window.addEventListener('pointerup', this.onUp.bind(this));
-    container.addEventListener('pointermove', this.onMove.bind(this));
-    container.addEventListener('dblclick', this.onDoubleClick.bind(this));
-    // keyboard
-    container.addEventListener('keydown', e => {
-      if(e.key === 'ArrowLeft') this.panBy(40,0);
-      if(e.key === 'ArrowRight') this.panBy(-40,0);
+/* ---------- Initialize Pannellum with scenes ---------- */
+function initPannellum() {
+  if (!window.pannellum) {
+    console.error('Pannellum not available (check CDN).');
+    return;
+  }
+  const scenes = {};
+  APP.state.panoramas.forEach(p => {
+    scenes[p.id] = {
+      title: p.title,
+      panorama: p.image,
+      type: 'equirectangular',
+      yaw: 0,
+      pitch: 0,
+      hfov: 100
+    };
+  });
+
+  // Create viewer or update
+  if (APP.state.viewer) {
+    // viewer exists — clear/add scenes
+    // Simple approach: destroy then recreate
+    try { APP.state.viewer.destroy(); } catch (e) {}
+    APP.state.viewer = null;
+  }
+
+  APP.state.viewer = pannellum.viewer('panoContainer', {
+    default: {
+      firstScene: APP.state.panoramas[0].id,
+      sceneFadeDuration: 600
+    },
+    scenes
+  });
+
+  // When scene changes, update APP state
+  APP.state.viewer.on('scenechange', (sceneId) => {
+    APP.state.currentId = sceneId;
+    // update round display
+    $('#roundNum').textContent = `${APP.state.round}/${APP.state.roundsTotal}`;
+    // enable/disable nav arrows
+    const cur = APP.state.panoramas.find(p => p.id === sceneId);
+    $id('forwardBtn').disabled = !(cur && cur.links && cur.links.length);
+    $id('backBtn').disabled = !(cur && cur.links && cur.links.length);
+  });
+}
+
+/* ---------- Initialize Leaflet map when modal opens ---------- */
+function initMapIfNeeded() {
+  if (APP.state.map) return;
+  const mapEl = $id('mapid');
+  APP.state.map = L.map(mapEl, { attributionControl: false }).setView([20, 0], 2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(APP.state.map);
+
+  // clicking on map sets marker
+  APP.state.map.on('click', (e) => {
+    if (APP.state.mapMarker) APP.state.map.removeLayer(APP.state.mapMarker);
+    APP.state.mapMarker = L.marker(e.latlng, {draggable: true}).addTo(APP.state.map);
+    APP.state.guessLatLon = { lat: e.latlng.lat, lon: e.latlng.lng };
+    APP.state.mapMarker.on('dragend', () => {
+      const p = APP.state.mapMarker.getLatLng();
+      APP.state.guessLatLon = { lat: p.lat, lon: p.lng };
     });
-  },
-  load(pano){
-    // set image src then center
-    this.img.onload = () => {
-      // compute max offsets
-      const iw = this.img.naturalWidth;
-      const ih = this.img.naturalHeight;
-      const cw = this.container.clientWidth;
-      const ch = this.container.clientHeight;
-      // We scale image to fit height
-      const scale = ch / ih;
-      const displayWidth = iw * scale;
-      this.scale = 1;
-      this.maxOffsetX = Math.max(0, displayWidth - cw);
-      this.maxOffsetY = Math.max(0, 0); // we limit vertical small
-      // start centered
-      this.posX = -this.maxOffsetX / 2;
-      this.posY = 0;
-      this.update();
-    };
-    this.img.src = pano.image;
-    this.img.alt = pano.title || 'GeoChef panorama';
-  },
-  update(){
-    // set transform to pan/tilt/scale
-    this.img.style.transform = `translate3d(${this.posX}px, ${this.posY}px, 0) scale(${this.scale})`;
-  },
-  onDown(e){
-    this.dragging = true;
-    this.lastX = e.clientX;
-    this.lastY = e.clientY;
-    this.container.setPointerCapture(e.pointerId);
-  },
-  onUp(e){
-    this.dragging = false;
-  },
-  onMove(e){
-    if(!this.dragging) return;
-    const dx = e.clientX - this.lastX;
-    const dy = e.clientY - this.lastY;
-    this.lastX = e.clientX;
-    this.lastY = e.clientY;
-    this.panBy(dx, dy);
-  },
-  panBy(dx, dy){
-    // dx positive -> image should move right (look left) so subtract
-    this.posX += dx;
-    // clamp based on maxOffsetX (negative values allowed)
-    const minX = -this.maxOffsetX;
-    const maxX = 0;
-    if(this.posX < minX) this.posX = minX;
-    if(this.posX > maxX) this.posX = maxX;
-    // small vertical clamp
-    const vLimit = 100;
-    this.posY += dy;
-    if(this.posY < -vLimit) this.posY = -vLimit;
-    if(this.posY > vLimit) this.posY = vLimit;
-    this.update();
-  },
-  onDoubleClick(){
-    // quick zoom toggle
-    this.scale = this.scale > 1 ? 1 : 1.4;
-    this.update();
-  }
-};
+  });
+}
 
-// App UI wiring
-async function init(){
+/* ---------- UI wiring & game flow ---------- */
+async function init() {
   await loadPanoramas();
+  initPannellum();
+
   // UI refs
-  const panoWrap = $id('panoContainer');
-  viewer.init(panoWrap);
-
-  // load first pano
-  if(APP.state.panoramas.length){
-    loadPanoByIndex(0);
-  } else {
-    // show placeholder
-    const placeholder = {
-      image: 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='2048' height='1024'><rect width='100%' height='100%' fill='#eee'/><text x='50' y='60' font-size='36' fill='#666'>No panoramas loaded. Place panoramas.json in the same folder.</text></svg>`)
-    };
-    viewer.load(placeholder);
-  }
-
-  // buttons
   $id('startBtn').addEventListener('click', startGame);
-  $id('guessBtn').addEventListener('click', openMapModal);
+  $id('guessBtn').addEventListener('click', () => {
+    openModal('mapModal');
+    setTimeout(()=>{ initMapIfNeeded(); APP.state.map.invalidateSize(); }, 200);
+    // center map roughly on current pano if available
+    const curr = currentPano();
+    if (curr && APP.state.map) APP.state.map.setView([curr.lat || 20, curr.lon || 0], 4);
+  });
   $id('closeMap').addEventListener('click', () => closeModal('mapModal'));
   $id('confirmGuess').addEventListener('click', confirmGuess);
   $id('forwardBtn').addEventListener('click', forwardNode);
   $id('backBtn').addEventListener('click', backwardNode);
   $id('lowData').addEventListener('click', toggleLowData);
   $id('nextRound').addEventListener('click', nextRound);
-  // map canvas click
-  const canvas = $id('mapCanvas');
-  canvas.addEventListener('click', mapClick);
+  $id('downloadPack').addEventListener('click', downloadSamplePack);
+  $id('profileBtn').addEventListener('click', ()=>openModal('profileModal'));
+  $id('closeProfile').addEventListener('click', ()=>closeModal('profileModal'));
+  $id('saveProfile').addEventListener('click', saveProfile);
+  $id('logoutBtn').addEventListener('click', logout);
+  $id('navProfile').addEventListener('click', ()=>openModal('profileModal'));
+  $id('navLeaderboard').addEventListener('click', ()=>{ window.scrollTo({top: document.getElementById('leaderboard').offsetTop, behavior:'smooth'}); });
 
-  // load local leaderboard
+  // load user profile (local)
+  loadProfile();
+
+  // initial UI state
+  $id('roundNum').textContent = `0/0`;
+  $id('scoreVal').textContent = '0';
   renderLeaderboard();
-
-  // register sw
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('sw.js').catch(e => console.log('SW reg failed', e));
-  }
 }
 
-function loadPanoByIndex(i){
-  const pano = APP.state.panoramas[i];
-  if(!pano) return;
-  APP.state.currentIndex = i;
-  viewer.load(pano);
-  $id('roundNum').textContent = `${APP.state.round}/${APP.state.roundsTotal}`;
-  // update arrow availability
-  $id('forwardBtn').disabled = !(pano.links && pano.links.length);
-  $id('backBtn').disabled = !(pano.links && pano.links.length);
+/* ---------- helper: current panorama ---------- */
+function currentPano() {
+  return APP.state.panoramas.find(p => p.id === APP.state.currentId) || APP.state.panoramas[0];
 }
 
-function findIndexById(id){
-  return APP.state.panoramas.findIndex(p => p.id === id);
-}
-
-function forwardNode(){
-  const current = APP.state.panoramas[APP.state.currentIndex];
-  if(current && current.links && current.links[0]){
-    const idx = findIndexById(current.links[0]);
-    if(idx >= 0) loadPanoByIndex(idx);
-  }
-}
-function backwardNode(){
-  const current = APP.state.panoramas[APP.state.currentIndex];
-  if(current && current.links && current.links.length>1){
-    const idx = findIndexById(current.links[1]);
-    if(idx >= 0) loadPanoByIndex(idx);
-  } else {
-    // fallback to previous index
-    const prev = (APP.state.currentIndex - 1 + APP.state.panoramas.length) % APP.state.panoramas.length;
-    loadPanoByIndex(prev);
-  }
-}
-
-function startGame(){
+/* ---------- start game ---------- */
+function startGame() {
   const mode = $id('modeSelect').value;
   APP.state.round = 1;
   APP.state.score = 0;
-  if(mode === 'standard') APP.state.roundsTotal = 5;
-  if(mode === 'casual') APP.state.roundsTotal = 1;
-  if(mode === 'pro') APP.state.roundsTotal = 10;
+  if (mode === 'standard') APP.state.roundsTotal = 5;
+  if (mode === 'casual') APP.state.roundsTotal = 1;
+  if (mode === 'pro') APP.state.roundsTotal = 10;
   $id('scoreVal').textContent = APP.state.score;
-  // choose random start
+  // pick random start scene
   const idx = Math.floor(Math.random() * APP.state.panoramas.length);
-  loadPanoByIndex(idx);
+  const startId = APP.state.panoramas[idx].id;
+  try { APP.state.viewer.loadScene(startId); }
+  catch (e) { console.warn('viewer.loadScene failed', e); }
   APP.state.startTime = Date.now();
-  // small onboarding hint
-  alert('Welcome to GeoChef! Drag on the panorama to look around. When ready tap "Make Guess".');
 }
 
-function openMapModal(){
-  // show simple equirectangular grid canvas and allow pin drop
-  const modal = $id('mapModal');
+/* ---------- Navigation (follow links) ---------- */
+function forwardNode() {
+  const cur = currentPano();
+  if (!cur || !cur.links || !cur.links.length) return;
+  const nextId = cur.links[0];
+  if (APP.state.viewer && nextId) APP.state.viewer.loadScene(nextId);
+}
+function backwardNode() {
+  const cur = currentPano();
+  if (!cur || !cur.links || !cur.links.length) {
+    // fallback: previous in array
+    const idx = APP.state.panoramas.findIndex(p=>p.id===APP.state.currentId);
+    const prev = (idx - 1 + APP.state.panoramas.length) % APP.state.panoramas.length;
+    APP.state.viewer.loadScene(APP.state.panoramas[prev].id);
+    return;
+  }
+  const nextId = cur.links[1] || cur.links[0];
+  if (APP.state.viewer && nextId) APP.state.viewer.loadScene(nextId);
+}
+
+/* ---------- Map modal helpers ---------- */
+function openModal(id) {
+  const modal = $id(id);
   modal.setAttribute('aria-hidden','false');
   modal.style.display = 'flex';
-  drawMapCanvas();
-  APP.state.guessLatLon = null;
 }
-
-function closeModal(id){
+function closeModal(id) {
   const modal = $id(id);
   modal.setAttribute('aria-hidden','true');
   modal.style.display = 'none';
 }
 
-function drawMapCanvas(){
-  const canvas = $id('mapCanvas');
-  const ctx = canvas.getContext('2d');
-  // simple lat/lon grid
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle = '#eaf6ff';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  // draw grid lines
-  ctx.strokeStyle = '#d7eefc';
-  ctx.lineWidth = 1;
-  for(let x=0;x<=360;x+=30){
-    const px = (x/360)*canvas.width;
-    ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,canvas.height); ctx.stroke();
-  }
-  for(let y= -90;y<=90;y+=30){
-    const py = ((90 - y)/180)*canvas.height;
-    ctx.beginPath(); ctx.moveTo(0,py); ctx.lineTo(canvas.width,py); ctx.stroke();
-  }
-  // small world label
-  ctx.fillStyle = '#0b2636';
-  ctx.font = '14px sans-serif';
-  ctx.fillText('World Grid (offline fallback). Tap to drop pin.', 10, 20);
-  // If a pin exists, draw it
-  if(APP.state.guessLatLon) drawPin(ctx, APP.state.guessLatLon.lon, APP.state.guessLatLon.lat, canvas);
-}
-
-function mapClick(evt){
-  const canvas = evt.currentTarget;
-  const rect = canvas.getBoundingClientRect();
-  const x = evt.clientX - rect.left;
-  const y = evt.clientY - rect.top;
-  // convert x,y to lon/lat via simple equirectangular
-  const lon = (x / canvas.width) * 360 - 180;
-  const lat = 90 - (y / canvas.height) * 180;
-  APP.state.guessLatLon = {lat, lon};
-  drawMapCanvas();
-}
-
-function drawPin(ctx, lon, lat, canvas){
-  const x = ((lon + 180) / 360) * canvas.width;
-  const y = ((90 - lat) / 180) * canvas.height;
-  ctx.fillStyle = 'rgba(255,69,58,0.95)';
-  ctx.beginPath(); ctx.arc(x, y, 10, 0, 2*Math.PI); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.font='12px sans-serif'; ctx.fillText('Here', x+14, y+4);
-}
-
-function confirmGuess(){
-  if(!APP.state.guessLatLon){
-    alert('Drop a pin first');
+/* ---------- Confirm guess (calc distance & scoring) ---------- */
+function confirmGuess() {
+  if (!APP.state.guessLatLon && !APP.state.mapMarker) {
+    alert('Drop a pin on the map first.');
     return;
   }
-  const pano = APP.state.panoramas[APP.state.currentIndex];
-  const actualLat = pano.lat;
-  const actualLon = pano.lon;
-  const guess = APP.state.guessLatLon;
-  const distanceKm = haversine(actualLat, actualLon, guess.lat, guess.lon);
-  // simple scoring formula: base 5000 - distance*5, + time bonus
+  let guess = APP.state.guessLatLon;
+  if (!guess && APP.state.mapMarker) {
+    const p = APP.state.mapMarker.getLatLng();
+    guess = { lat: p.lat, lon: p.lng };
+  }
+  const pano = currentPano();
+  const distanceKm = haversine(pano.lat, pano.lon, guess.lat, guess.lon);
   const base = Math.max(0, Math.round(5000 - (distanceKm * 5)));
   const timeSec = Math.max(1, Math.round((Date.now() - APP.state.startTime) / 1000));
   const timeBonus = Math.max(0, Math.round(Math.max(0, 1000 - (timeSec * 4))));
   const total = base + timeBonus;
   APP.state.score += total;
   $id('scoreVal').textContent = APP.state.score;
-  // show score modal with breakdown
-  const sb = $id('scoreBreakdown');
-  sb.innerHTML = `
+  $id('scoreBreakdown').innerHTML = `
     <div class="score-reveal"><strong>${total} pts</strong></div>
     <div>Distance: ${distanceKm.toFixed(2)} km</div>
     <div>Base: ${base} pts</div>
     <div>Time bonus: ${timeBonus} pts (took ${timeSec}s)</div>
   `;
-  openScoreModal();
-  // record to leaderboard localStorage after round ends
+  closeModal('mapModal');
+  openModal('scoreModal');
 }
 
-function openScoreModal(){
-  const m = $id('scoreModal');
-  m.setAttribute('aria-hidden','false'); m.style.display='flex';
-}
-
-function nextRound(){
+/* ---------- Next round ---------- */
+function nextRound() {
   closeModal('scoreModal');
   APP.state.round++;
-  if(APP.state.round > APP.state.roundsTotal){
-    // game over, save to leaderboard
-    const name = prompt('Game over! Enter a name for the leaderboard','Chef') || 'Chef';
+  if (APP.state.round > APP.state.roundsTotal) {
+    // end game -> save leaderboard (local)
+    const name = APP.state.user?.name || prompt('Game over! Enter a name for the leaderboard','Chef') || 'Chef';
     saveToLeaderboard(name, APP.state.score);
     renderLeaderboard();
     alert(`Game over — ${APP.state.score} pts recorded for ${name}`);
   } else {
-    // pick next random panorama
+    // new random scene
     const idx = Math.floor(Math.random() * APP.state.panoramas.length);
+    APP.state.viewer.loadScene(APP.state.panoramas[idx].id);
     APP.state.startTime = Date.now();
-    loadPanoByIndex(idx);
+    APP.state.guessLatLon = null;
+    if (APP.state.mapMarker) { APP.state.map.removeLayer(APP.state.mapMarker); APP.state.mapMarker = null; }
   }
 }
 
-function saveToLeaderboard(name, score){
+/* ---------- Local leaderboard ---------- */
+function saveToLeaderboard(name, score) {
   const key = 'geochef.leaderboard.v1';
   const list = JSON.parse(localStorage.getItem(key) || '[]');
-  list.push({name,score,date:new Date().toISOString()});
-  list.sort((a,b)=>b.score - a.score);
+  list.push({ name, score, date: new Date().toISOString() });
+  list.sort((a,b) => b.score - a.score);
   localStorage.setItem(key, JSON.stringify(list.slice(0,50)));
 }
-
-function renderLeaderboard(){
+function renderLeaderboard() {
   const key = 'geochef.leaderboard.v1';
   const list = JSON.parse(localStorage.getItem(key) || '[]');
   const ol = $id('leaderList');
@@ -360,12 +308,52 @@ function renderLeaderboard(){
   });
 }
 
-function toggleLowData(){
+/* ---------- Low Data toggle ---------- */
+function toggleLowData() {
   APP.state.lowData = !APP.state.lowData;
   $id('lowData').textContent = `Low Data: ${APP.state.lowData ? 'On' : 'Off'}`;
-  // In low data mode, we could swap to tiny images; here we just show a toast
-  alert('Low Data mode toggled (sample behavior). Heavy features will be disabled.');
+  alert('Low Data toggled. Heavy features will be disabled (if present).');
 }
 
-// Init
-document.addEventListener('DOMContentLoaded', init);
+/* ---------- Download sample pack (cache panoramas) ---------- */
+async function downloadSamplePack() {
+  const urls = APP.state.panoramas.map(p => p.image).filter(Boolean);
+  if (!('caches' in window)) { alert('Caching not supported in this browser'); return; }
+  try {
+    const cache = await caches.open(APP.CACHE_NAME);
+    await Promise.all(urls.map(u => cache.add(u).catch(e => console.warn('cache add failed', u, e))));
+    alert('Sample pack cached for offline use!');
+  } catch (e) {
+    console.error('downloadSamplePack failed', e);
+    alert('Failed to cache pack — see console.');
+  }
+}
+
+/* ---------- Profile (local-only) ---------- */
+function loadProfile() {
+  const user = JSON.parse(localStorage.getItem('geochef.user') || 'null');
+  APP.state.user = user;
+  if (user) {
+    $id('username').value = user.name;
+  } else {
+    $id('username').value = '';
+  }
+}
+function saveProfile() {
+  const name = $id('username').value.trim() || 'Chef';
+  APP.state.user = { name };
+  localStorage.setItem('geochef.user', JSON.stringify(APP.state.user));
+  alert('Profile saved locally as: ' + name);
+  closeModal('profileModal');
+}
+function logout() {
+  localStorage.removeItem('geochef.user');
+  APP.state.user = null;
+  $id('username').value = '';
+  alert('Logged out (local).');
+}
+
+/* ---------- boot ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  init().catch(e => console.error(e));
+});

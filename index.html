@@ -8,11 +8,24 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#1E90FF"/>
 
-  <link rel="stylesheet" href="main.css" />
-  <!-- Chef hat icon inline accessible -->
-  <link rel="icon" href="icons/chef-hat.svg" type="image/svg+xml">
+  <!-- Pannellum (360 viewer) -->
+  <link href="https://unpkg.com/pannellum/build/pannellum.css" rel="stylesheet">
+  <script src="https://unpkg.com/pannellum/build/pannellum.js"></script>
 
+  <!-- Leaflet (map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <link rel="stylesheet" href="main.css" />
+
+  <link rel="icon" href="icons/chef-hat.svg" type="image/svg+xml">
   <meta name="description" content="GeoChef — mobile-first GeoGuessr-style web game (offline-ready)."/>
+  <style>
+    /* map modal tweaks (kept here so you don't need to change main.css) */
+    #mapid { width: 100%; height: 360px; border-radius:10px; }
+    .modal .modal-content { padding: 10px; }
+    .pannellum-tooltip { position: absolute; z-index: 10; color: #fff; font-weight:600 }
+  </style>
 </head>
 <body>
   <div id="app" class="app" aria-live="polite">
@@ -21,14 +34,12 @@
         <img src="icons/chef-hat.svg" alt="" aria-hidden="true" class="logo"/>
         <h1 class="title">GeoChef</h1>
       </div>
-      <button id="menuBtn" class="icon-btn" aria-label="Open settings">☰</button>
+      <button id="profileBtn" class="icon-btn" aria-label="Open profile">👤</button>
     </header>
 
     <main class="main" role="main">
       <section id="panoramaWrap" class="panorama-wrap" aria-label="Panorama viewer">
-        <div id="panoContainer" class="pano-container" tabindex="0" aria-label="Panorama. Drag horizontally to look around.">
-          <!-- image added by JS -->
-        </div>
+        <div id="panoContainer" class="pano-container" tabindex="0" aria-label="Panorama. Drag to look around."></div>
 
         <div class="hud">
           <div class="hud-left">
@@ -76,12 +87,12 @@
     </main>
 
     <nav class="bottom-nav" role="navigation" aria-label="Main">
-      <button class="nav-btn" aria-label="Play">Play</button>
-      <button class="nav-btn" aria-label="Leaderboard">Leaderboard</button>
-      <button class="nav-btn" aria-label="Profile">Profile</button>
+      <button id="navPlay" class="nav-btn" aria-label="Play">Play</button>
+      <button id="navLeaderboard" class="nav-btn" aria-label="Leaderboard">Leaderboard</button>
+      <button id="navProfile" class="nav-btn" aria-label="Profile">Profile</button>
     </nav>
 
-    <!-- Map modal (used for guessing) -->
+    <!-- Map modal (Leaflet) -->
     <div id="mapModal" class="modal" role="dialog" aria-hidden="true" aria-label="Map — drop a pin to make your guess">
       <div class="modal-content">
         <header class="modal-header">
@@ -89,8 +100,8 @@
           <button id="closeMap" class="icon-btn" aria-label="Close map">✕</button>
         </header>
         <div class="map-area">
-          <canvas id="mapCanvas" width="900" height="450" aria-label="World map canvas"></canvas>
-          <div class="map-help">Click or tap to drop pin. For precise, zoom in.</div>
+          <div id="mapid" aria-label="Interactive map"></div>
+          <div class="map-help">Tap to drop a pin. Use pinch to zoom for precision.</div>
         </div>
         <footer class="modal-footer">
           <button id="confirmGuess" class="primary">Confirm Guess</button>
@@ -102,13 +113,31 @@
     <div id="scoreModal" class="modal small" role="dialog" aria-hidden="true">
       <div class="modal-content score-card">
         <h3 id="scoreTitle">Round Score</h3>
-        <div id="scoreBreakdown" class="score-breakdown"></div>
+        <div id="scoreBreakdown" class="score-breakdown" aria-live="polite"></div>
         <button id="nextRound" class="primary">Next</button>
+      </div>
+    </div>
+
+    <!-- Profile modal -->
+    <div id="profileModal" class="modal" role="dialog" aria-hidden="true">
+      <div class="modal-content">
+        <header class="modal-header">
+          <h2>Profile</h2>
+          <button id="closeProfile" class="icon-btn" aria-label="Close profile">✕</button>
+        </header>
+        <div style="padding:8px">
+          <label for="username">Username</label>
+          <input id="username" type="text" placeholder="Chef" style="width:100%;padding:8px;margin:8px 0;border-radius:8px"/>
+          <div style="display:flex;gap:8px">
+            <button id="saveProfile" class="primary">Save</button>
+            <button id="logoutBtn" class="secondary">Logout (local)</button>
+          </div>
+        </div>
       </div>
     </div>
 
   </div>
 
-  <script type="module" src="main.js"></script>
+  <script src="main.js" type="module"></script>
 </body>
 </html>
